@@ -35,15 +35,23 @@ type Task struct {
 	description string
 }
 
-func (t Task) FilterValue() string {
+func (t *Task) Next() {
+	if t.status == done {
+		t.status = todo
+		return
+	}
+	t.status++
+}
+
+func (t *Task) FilterValue() string {
 	return t.title
 }
 
-func (t Task) Title() string {
+func (t *Task) Title() string {
 	return t.title
 }
 
-func (t Task) Description() string {
+func (t *Task) Description() string {
 	return t.description
 }
 
@@ -57,6 +65,18 @@ type Model struct {
 
 func New() *Model {
 	return &Model{}
+}
+
+func (m *Model) MoveItemToNext() tea.Msg {
+	selectedItem := m.lists[m.focused].SelectedItem()
+	if selectedItem == nil {
+		return nil
+	}
+	selectedTask := selectedItem.(*Task)
+	m.lists[selectedTask.status].RemoveItem(m.lists[m.focused].Index())
+	selectedTask.Next()
+	m.lists[selectedTask.status].InsertItem(len(m.lists[selectedTask.status].Items()), selectedItem)
+	return nil
 }
 
 func (m *Model) Next() {
@@ -82,23 +102,23 @@ func (m *Model) initLists(w, h int) {
 	// Init To DO
 	m.lists[todo].Title = "To Do"
 	m.lists[todo].SetItems([]list.Item{
-		Task{status: todo, title: "buy milk", description: "strawbery milk"},
-		Task{status: todo, title: "eat sushi", description: "miso soup"},
-		Task{status: todo, title: "cleaning", description: "do laundry"},
+		&Task{status: todo, title: "buy milk", description: "strawbery milk"},
+		&Task{status: todo, title: "eat sushi", description: "miso soup"},
+		&Task{status: todo, title: "cleaning", description: "do laundry"},
 	})
 
 	m.lists[inProgress].Title = "In progress"
 	m.lists[inProgress].SetItems([]list.Item{
-		Task{status: todo, title: "write code", description: "finish the kanban project"},
-		Task{status: todo, title: "write code", description: "finish the kanban project"},
-		Task{status: todo, title: "write code", description: "finish the kanban project"},
+		&Task{status: inProgress, title: "write code", description: "finish the kanban project"},
+		&Task{status: inProgress, title: "write code", description: "finish the kanban project"},
+		&Task{status: inProgress, title: "write code", description: "finish the kanban project"},
 	})
 
 	m.lists[done].Title = "Done"
 	m.lists[done].SetItems([]list.Item{
-		Task{status: todo, title: "learn algebra", description: "repeat finite fields"},
-		Task{status: todo, title: "learn algebra", description: "repeat finite fields"},
-		Task{status: todo, title: "learn algebra", description: "repeat finite fields"},
+		&Task{status: done, title: "learn algebra", description: "repeat finite fields"},
+		&Task{status: done, title: "learn algebra", description: "repeat finite fields"},
+		&Task{status: done, title: "learn algebra", description: "repeat finite fields"},
 	})
 
 }
@@ -127,6 +147,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Previous()
 		case "right", "l":
 			m.Next()
+		case "enter":
+			return m, m.MoveItemToNext
 		}
 	}
 
